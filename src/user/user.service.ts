@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { sendResponse } from 'src/utils/responses.dto';
 import { PrismaService } from 'prisma/prisma.service';
 import { SignupDto } from './user.dto';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
 @Injectable()
 export class UserService {
@@ -29,13 +29,20 @@ export class UserService {
   };
   createUser = async (data: SignupDto) => {
     const { password, companyId, ...body } = data;
+
+    // Check email isn't already taken before attempting to create
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existing) throw new ConflictException('Email is already in use');
+
     if (companyId) {
       const company = await this.prisma.company.findUnique({
         where: { id: companyId },
       });
-
       if (!company) throw new BadRequestException('Company does not exist');
     }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.prisma.user.create({
       data: {
