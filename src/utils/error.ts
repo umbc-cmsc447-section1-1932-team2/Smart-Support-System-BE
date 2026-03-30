@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import {
+  HttpException,
   ConflictException,
   BadRequestException,
   NotFoundException,
@@ -7,11 +8,15 @@ import {
 } from '@nestjs/common';
 
 export function serverError(error: unknown) {
+  // If it's already a NestJS HTTP exception, rethrow it as-is
+  if (error instanceof HttpException) {
+    throw error;
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
-      case 'P2002': {
+      case 'P2002':
         throw new ConflictException(error.message);
-      }
       case 'P2025':
         throw new NotFoundException(error.message);
       case 'P2003':
@@ -20,5 +25,6 @@ export function serverError(error: unknown) {
         throw new InternalServerErrorException(error.message);
     }
   }
+
   throw new InternalServerErrorException(`Unexpected error occurred ${error}`);
 }
