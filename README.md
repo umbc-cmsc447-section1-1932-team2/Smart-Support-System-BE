@@ -42,6 +42,8 @@ DATABASE_URL="postgresql://username:password@localhost:5432/smart_support_db"
 # Server
 PORT=3000
 NODE_ENV=development
+# JWT key for signing, needed for JWT token functionality
+JWT_SECRET="your-secret-key-here"
 ```
 
 ### 4. Local Database Setup
