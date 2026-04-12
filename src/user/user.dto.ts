@@ -26,9 +26,5 @@ export class SignupDto {
   phone?: string;
 
   @IsOptional()
-  @IsString()
-  companyId?: string;
-
-  @IsOptional()
   role?: Role;
 }

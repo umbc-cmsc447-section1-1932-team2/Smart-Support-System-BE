@@ -12,20 +12,36 @@ enum Role {
   ADMIN
 }
 
-model Company {
-  id    String @id @default(uuid())
-  name  String
-  users User[] 
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED_NOT_RESOLVED
 }
 
 model User {
-  id         String   @id @default(uuid())
-  username   String?
-  email      String   @unique
-  password   String
-  phone      String?  @unique
-  companyId  String?
-  company    Company?  @relation(fields: [companyId], references: [id])
-  role       Role     @default(USER)
+  id                String    @id @default(uuid())
+  username          String?
+  email             String    @unique
+  password          String
+  phone             String?   @unique
+  role              Role      @default(USER)
+
+  createdTickets    Ticket[]  @relation("CreatedTickets")
+  assignedTickets   Ticket[]  @relation("AssignedTickets")
 }
 
+model Ticket {
+  id	         String           @id @default(uuid())
+  status		 TicketStatus     @default(OPEN)
+  title          String
+  description    String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  createdById    String?
+  createdBy      User?            @relation("CreatedTickets", fields: [createdById], references: [id])
+
+  assignedToId   String?
+  assignedTo     User?            @relation("AssignedTickets", fields: [assignedToId], references: [id])
+}
