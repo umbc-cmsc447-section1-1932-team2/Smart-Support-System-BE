@@ -12,7 +12,10 @@ import { LoginDto, RefreshDto } from './auth.dto';
 
 // In-memory refresh token store.
 // For production, move this to a DB table (e.g. RefreshToken model in Prisma).
-const refreshTokenStore = new Map<string, { userId: string; expiresAt: Date }>();
+const refreshTokenStore = new Map<
+  string,
+  { userId: string; expiresAt: Date }
+>();
 
 @Injectable()
 export class AuthService {
@@ -26,11 +29,15 @@ export class AuthService {
 
     // 1. Find user by email
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('No user with that account or password found');
+    if (!user)
+      throw new UnauthorizedException(
+        'This user with this email does not exist',
+      );
 
     // 2. Compare password against stored bcrypt hash
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) throw new UnauthorizedException('No user with that account or password found');
+    if (!passwordMatch)
+      throw new UnauthorizedException('Incorrect password was provided.');
 
     // 3. Sign a short-lived access token (15 min)
     const payload = { sub: user.id, email: user.email, role: user.role };
@@ -42,6 +49,10 @@ export class AuthService {
     refreshTokenStore.set(refreshToken, { userId: user.id, expiresAt });
 
     return sendResponse('Login successful', {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
       accessToken,
       refreshToken,
       expiresIn: 900, // seconds (15 min)
@@ -59,11 +70,15 @@ export class AuthService {
     // 2. Check it has not expired
     if (stored.expiresAt < new Date()) {
       refreshTokenStore.delete(refreshToken);
-      throw new UnauthorizedException('Refresh token expired, please log in again');
+      throw new UnauthorizedException(
+        'Refresh token expired, please log in again',
+      );
     }
 
     // 3. Load the user
-    const user = await this.prisma.user.findUnique({ where: { id: stored.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: stored.userId },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     // 4. Issue a fresh access token
@@ -85,6 +100,8 @@ export class AuthService {
   };
 
   logout = async (dto: RefreshDto) => {
+    if (!refreshTokenStore.has(dto.refreshToken))
+      throw new UnauthorizedException('Invalid refresh token');
     refreshTokenStore.delete(dto.refreshToken);
     return sendResponse('Logged out successfully', {});
   };
