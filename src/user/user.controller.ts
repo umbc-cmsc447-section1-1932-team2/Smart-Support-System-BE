@@ -1,19 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { UserService } from './user.service';
 import { SignupDto } from './user.dto';
 import { asyncWrapper } from 'src/utils/helper';
-import { JwtGuard } from 'src/auth/jwt.guard';
+import { Protected } from 'src/auth/jwt.guard';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  /**
-   * GET /user/all
-   * Protected — requires a valid Bearer token in the Authorization header.
-   * Example header: Authorization: Bearer <accessToken>
-   */
-  @UseGuards(JwtGuard)
+  @Protected()
   @HttpCode(200)
   @Get('/all')
   async getAllUsers() {
