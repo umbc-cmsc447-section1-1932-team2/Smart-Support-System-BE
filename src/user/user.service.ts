@@ -16,19 +16,13 @@ export class UserService {
         email: true,
         phone: true,
         role: true,
-        company: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     });
 
     return sendResponse('All users fetched successfully', data);
   };
   createUser = async (data: SignupDto) => {
-    const { password, companyId, ...body } = data;
+    const { password, ...body } = data;
 
     // Check email isn't already taken before attempting to create
     const existing = await this.prisma.user.findUnique({
@@ -36,19 +30,11 @@ export class UserService {
     });
     if (existing) throw new ConflictException('Email is already in use');
 
-    if (companyId) {
-      const company = await this.prisma.company.findUnique({
-        where: { id: companyId },
-      });
-      if (!company) throw new BadRequestException('Company does not exist');
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     await this.prisma.user.create({
       data: {
         ...body,
         password: hashedPassword,
-        ...(companyId ? { companyId } : {}),
       },
     });
     return sendResponse('User created successfully', body);
