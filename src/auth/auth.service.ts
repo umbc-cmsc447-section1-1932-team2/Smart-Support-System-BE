@@ -26,11 +26,11 @@ export class AuthService {
 
     // 1. Find user by email
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('No user with that account or password found');
 
     // 2. Compare password against stored bcrypt hash
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
+    if (!passwordMatch) throw new UnauthorizedException('No user with that account or password found');
 
     // 3. Sign a short-lived access token (15 min)
     const payload = { sub: user.id, email: user.email, role: user.role };
