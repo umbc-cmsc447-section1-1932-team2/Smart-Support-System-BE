@@ -78,15 +78,15 @@ async getAssignedTickets(@CurrentUser() user: { id: string }) {
 * Any logged in user can attempt this — service layer enforces ownership for USERs.
 */
 @HttpCode(200)
-@Get('/:id')
-async getTicketById(
-  @Param('id') id: string,
-  @CurrentUser() user: { id: string; role: Role },
-) {
-  return asyncWrapper(() =>
-    this.ticketService.getTicketById(id, user.id, user.role),
-  );
-}
+  @Get('/:id')
+  async getTicketById(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: Role },
+  ) {
+    return asyncWrapper(() =>
+      this.ticketService.getTicketById(id, user.id, user.role),
+    );
+  }
 
 
 /**

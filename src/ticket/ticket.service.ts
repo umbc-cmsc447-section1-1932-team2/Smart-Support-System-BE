@@ -1,5 +1,7 @@
 import {
   Injectable,
+  Inject,
+  forwardRef,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
@@ -8,15 +10,25 @@ import { PrismaService } from 'prisma/prisma.service';
 import { sendResponse } from 'src/utils/responses.dto';
 import { CreateTicketDto, UpdateTicketDto, AssignTicketDto } from './ticket.dto';
 import { Role } from '@prisma/client';
+import { ChatGateway } from '../chat/chat.gateway';
+
+/*
+The constructor utilizes forwardRef to prevent circular dependencies between the TicketService and ChatGateway.
+The createTicket method now includes the createdBy relation and broadcasts a newTicketAlert to all agents via WebSockets.
+The getAllTickets and getAssignedTickets methods are optimized to include creator details, ensuring the dashboard displays names instead of IDs.
+The getTicketById method includes a chronological message history to support the ticket chat functionality.
+*/
 
 @Injectable()
 export class TicketService {
-  constructor(private prisma: PrismaService) {}
-
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   /**
-   * Create a new ticket — any logged in user can do this.
-   * The createdById is taken from the JWT token
+   * Create a new ticket and broadcast it to agents immediately.
    */
   createTicket = async (dto: CreateTicketDto, userId: string) => {
     const ticket = await this.prisma.ticket.create({
@@ -26,16 +38,46 @@ export class TicketService {
         status: dto.status ?? 'OPEN',
         createdById: userId,
       },
+      include: {
+        createdBy: {
+          select: { id: true, username: true, email: true },
+        },
+      },
     });
+
+    // Broadcast the new ticket so the Agent Dashboard updates without a refresh
+    if (this.chatGateway?.server) {
+      this.chatGateway.server.emit('newTicketAlert', ticket);
+    }
+
     return sendResponse('Ticket created successfully', ticket);
   };
 
+  /**
+   * Used for the "Support Queue" tab.
+   * Returns all tickets that are NOT yet assigned to an agent.
+   */
+getQueue = async () => {
+  const tickets = await this.prisma.ticket.findMany({
+    where: {
+      assignedToId: null,
+      status: 'OPEN', // Ensure we only show active, unassigned tickets
+    },
+    include: {
+      createdBy: {
+        select: { id: true, username: true, email: true },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 
+  return sendResponse('Queue fetched successfully', tickets);
+};
   /**
    * Get all tickets (Agent and Admin only).
    */
   getAllTickets = async () => {
-    const tickets = await this.prisma.ticket.findMany({
+    return await this.prisma.ticket.findMany({
       include: {
         createdBy: {
           select: { id: true, username: true, email: true, role: true },
@@ -44,13 +86,12 @@ export class TicketService {
           select: { id: true, username: true, email: true, role: true },
         },
       },
+      orderBy: { createdAt: 'desc' },
     });
-    return sendResponse('All tickets fetched successfully', tickets);
   };
 
-
   /**
-   * Get only the tickets created by the logged in user — USER role.
+   * Get tickets created by the logged-in user.
    */
   getMyTickets = async (userId: string) => {
     const tickets = await this.prisma.ticket.findMany({
@@ -64,29 +105,26 @@ export class TicketService {
     return sendResponse('Your tickets fetched successfully', tickets);
   };
 
-
   /**
- * Get all tickets assigned to the logged in agent or admin.
- * This is is for the agent/admin windows for viewing their
- * assigned tickets instead of the tickets they've created
- */
-getAssignedTickets = async (userId: string) => {
+   * Used for the "My Active Chats" tab.
+   */
+getAssignedTickets = async (agentId: string) => {
   const tickets = await this.prisma.ticket.findMany({
-    where: { assignedToId: userId },
+    where: {
+      assignedToId: agentId,
+    },
     include: {
       createdBy: {
         select: { id: true, username: true, email: true },
       },
     },
+    orderBy: { updatedAt: 'desc' },
   });
+  
   return sendResponse('Assigned tickets fetched successfully', tickets);
 };
-
-
   /**
-   * Get a single ticket by ID.
-   * Users can only view their own tickets.
-   * Agents and admins can view any ticket.
+   * Get a single ticket with full message history.
    */
   getTicketById = async (ticketId: string, userId: string, userRole: Role) => {
     const ticket = await this.prisma.ticket.findUnique({
@@ -98,12 +136,19 @@ getAssignedTickets = async (userId: string) => {
         assignedTo: {
           select: { id: true, username: true, email: true, role: true },
         },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            sender: {
+              select: { id: true, username: true },
+            },
+          },
+        },
       },
     });
 
     if (!ticket) throw new NotFoundException('Ticket not found');
 
-    // Regular users can only see their own tickets
     if (userRole === Role.USER && ticket.createdById !== userId) {
       throw new ForbiddenException('Not Authorized');
     }
@@ -112,10 +157,11 @@ getAssignedTickets = async (userId: string) => {
   };
 
   /**
-   * Update the ticket title, description, or status.
-   * Only agents and admins have priv here
+   * Update ticket status or details.
    */
   updateTicket = async (ticketId: string, dto: UpdateTicketDto) => {
+    console.log("📥 Data received at Service:", dto);
+
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
     });
@@ -125,13 +171,12 @@ getAssignedTickets = async (userId: string) => {
       where: { id: ticketId },
       data: { ...dto },
     });
+    
     return sendResponse('Ticket updated successfully', updated);
   };
 
   /**
-   * Assign an agent or admin to a ticket — ADMIN only.
-   * Validates that the assignee is actually an AGENT or ADMIN.
-   * Will need an auto assign feature or something later maybe
+   * Assign an agent to a ticket.
    */
   assignTicket = async (ticketId: string, dto: AssignTicketDto) => {
     const ticket = await this.prisma.ticket.findUnique({
@@ -144,22 +189,22 @@ getAssignedTickets = async (userId: string) => {
     });
     if (!agent) throw new NotFoundException('User not found');
 
-    // Enforce that only AGENT or ADMIN can be assigned
     if (agent.role === Role.USER) {
-      throw new BadRequestException(
-        'Only agents or admins can be assigned to tickets',
-      );
+      throw new BadRequestException('Only agents or admins can be assigned to tickets');
     }
 
     const updated = await this.prisma.ticket.update({
       where: { id: ticketId },
-      data: { assignedToId: dto.agentId },
+      data: { 
+        assignedToId: dto.agentId,
+        status: 'IN_PROGRESS' // Auto-move to in progress when claimed
+      },
     });
     return sendResponse('Ticket assigned successfully', updated);
   };
 
   /**
-   * Delete a ticket — ADMIN only.
+   * Delete a ticket.
    */
   deleteTicket = async (ticketId: string) => {
     const ticket = await this.prisma.ticket.findUnique({

@@ -14,26 +14,25 @@ export class RolesGuard implements CanActivate {
     constructor(private reflector: Reflector) {}
 
     canActivate(context: ExecutionContext): boolean {
-
-        const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
-
-            context.getHandler(),
-            context.getClass(),
-        ]);
-    
-
-    //does the request require a role? If no, continue anyway
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
+  context.getHandler(), // Checks the specific @Get or @Post method
+  context.getClass(),   // Checks the @Controller class level
+   ]);
     if (!requiredRoles) return true;
 
-    //check for proper role on user request
     const { user } = context.switchToHttp().getRequest();
 
-    //error when user attempts to access priviledged route
-    if (!requiredRoles.includes(user.role)) {
+    // 🕵️ DEBUG LOGS - Check your NestJS Terminal for these!
+    console.log('--- Roles Guard Debug ---');
+    console.log('Target Route Roles:', requiredRoles);
+    console.log('User Found on Request:', user ? 'YES' : 'NO');
+    console.log('User Role:', user?.role);
 
+    if (!user || !requiredRoles.includes(user.role)) {
+        console.error('❌ GUARD REJECTED REQUEST');
         throw new ForbiddenException('Access Denied');
     }
 
     return true;
-    }
+}
 }

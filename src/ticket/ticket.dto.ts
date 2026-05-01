@@ -9,15 +9,14 @@ import { TicketStatus } from '@prisma/client';
 export class CreateTicketDto {
   @IsString()
   @IsNotEmpty()
-  title: string;
+  title!: string; 
 
   @IsString()
   @IsNotEmpty()
-  description: string;
-
+  description!: string; 
   @IsOptional()
   @IsEnum(TicketStatus)
-  status?: TicketStatus;
+  status?: TicketStatus; 
 }
 
 export class UpdateTicketDto {
@@ -32,10 +31,14 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsEnum(TicketStatus)
   status?: TicketStatus;
+
+  @IsOptional()
+  @IsString()
+  assignedToId?: string; 
 }
 
 export class AssignTicketDto {
   @IsString()
   @IsNotEmpty()
-  agentId: string;
+  agentId!: string; 
 }
