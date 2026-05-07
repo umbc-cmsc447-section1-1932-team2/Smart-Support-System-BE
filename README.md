@@ -26,6 +26,22 @@ cd Smart-Support-System-BE
 npm install
 ```
 
+#### Authentication
+- `@nestjs/jwt` — JWT token signing and verification
+- `@nestjs/passport` — Passport integration for NestJS
+- `passport` — Authentication middleware
+- `passport-jwt` — JWT strategy for Passport
+- `bcrypt` — Password hashing
+
+#### WebSockets
+- `@nestjs/websockets` — WebSocket support for NestJS
+- `@nestjs/platform-socket.io` — Socket.io adapter for NestJS
+- `socket.io` — WebSocket library
+
+#### Type Definitions (dev only)
+- `@types/passport-jwt` — TypeScript types for passport-jwt
+- `@types/bcrypt` — TypeScript types for bcrypt
+
 ### 3. Environment Setup
 
 Create a `.env` file in the root directory:
@@ -93,6 +109,12 @@ npm run start:dev
 ### 8. use postman for the api simulations
 
 ![SC postman running](./assets/sc_postman.png)
+
+### 9. Once Database is operational
+Seed the DB with the default admin account (Username: admin, Password: admin123)
+```bash
+npx prisma db seed
+``` 
 
 ## Contributing
 
