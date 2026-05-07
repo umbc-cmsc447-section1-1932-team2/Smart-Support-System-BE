@@ -12,6 +12,11 @@ enum Role {
   ADMIN
 }
 
+enum VerificationStatus {
+  VERIFIED
+  UNVERIFIED
+}
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
@@ -20,16 +25,17 @@ enum TicketStatus {
 }
 
 model User {
-  id                String    @id @default(uuid())
+  id                String              @id @default(uuid())
   username          String?
-  email             String    @unique
+  email             String              @unique
   password          String
-  phone             String?   @unique
-  role              Role      @default(USER)
+  phone             String?             @unique
+  role              Role                @default(USER)
+  verification      VerificationStatus  @default(UNVERIFIED)
 
-  createdTickets    Ticket[]  @relation("CreatedTickets")
-  assignedTickets   Ticket[]  @relation("AssignedTickets")
-  messages           Message[]
+  createdTickets    Ticket[]            @relation("CreatedTickets")
+  assignedTickets   Ticket[]            @relation("AssignedTickets")
+  messages          Message[]
 }
 
 model Ticket {

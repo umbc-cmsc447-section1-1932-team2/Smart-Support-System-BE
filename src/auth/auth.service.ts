@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'prisma/prisma.service';
@@ -39,11 +40,18 @@ export class AuthService {
     if (!passwordMatch)
       throw new UnauthorizedException('Incorrect password was provided.');
 
-    // 3. Sign a short-lived access token (15 min)
+    // 3. Block Unverified Agents/Admins
+    if (user.role !== 'USER' && user.verification === 'UNVERIFIED') {
+      throw new ForbiddenException(
+        'Your account is pending admin verification. Please contact an administrator.',
+      );
+    }
+
+    // 4. Sign a short-lived access token (15 min)
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
-    // 4. Generate an opaque refresh token valid for 7 days
+    // 5. Generate an opaque refresh token valid for 7 days
     const refreshToken = crypto.randomBytes(64).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     refreshTokenStore.set(refreshToken, { userId: user.id, expiresAt });
