@@ -32,7 +32,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user)
       throw new UnauthorizedException(
-        'This user with this email does not exist',
+        'The user with this email does not exist',
       );
 
     // 2. Compare password against stored bcrypt hash

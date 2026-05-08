@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 
+
 @Injectable()
 export class UserService {
   constructor(private prisma: PrismaService) { }
@@ -23,11 +24,13 @@ export class UserService {
         email: true,
         phone: true,
         role: true,
+        verification: true
       },
     });
 
     return sendResponse('All users fetched successfully', data);
   };
+
 
   createUser = async (data: SignupDto) => {
     const { password, ...body } = data;
@@ -46,6 +49,7 @@ export class UserService {
       data: {
         ...body,
         password: hashedPassword,
+        verification,
       },
     });
 
@@ -55,6 +59,7 @@ export class UserService {
     });
   };
 
+  //checks to see if a users status is verified or not
   verifyUser = async (userId: string) => {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User Not Found');
@@ -78,12 +83,13 @@ export class UserService {
     return sendResponse('User Verified Successfully', updated);
   };
 
+
   updateProfile = async (userId: string, dto: UpdateProfileDto) => {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User Not Found');
- 
+
     const updateData: any = {};
- 
+
     // update email
     if (dto.email) {
       const existing = await this.prisma.user.findUnique({
@@ -94,18 +100,19 @@ export class UserService {
       }
       updateData.email = dto.email;
     }
-    
+
     // should we handle username or just stick with e-mail?
     // handle username change
     //if (dto.username) {
     //  updateData.username = dto.username;
     //}
- 
+
     // update phone number
     if (dto.phone) {
       updateData.phone = dto.phone;
     }
- 
+
+    
     // update passowrd
     if (dto.newPassword) {
       if (!dto.currentPassword) {
@@ -122,11 +129,12 @@ export class UserService {
       }
       updateData.password = await bcrypt.hash(dto.newPassword, 10);
     }
- 
+
     if (Object.keys(updateData).length === 0) {
       throw new BadRequestException('No Fields Provided To Update');
     }
- 
+
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: updateData,
@@ -139,10 +147,11 @@ export class UserService {
         verification: true,
       },
     });
- 
+
     return sendResponse('Profile updated successfully', updated);
   };
- 
+
+
   /**
    * Admin deletes a user account.
    */
@@ -150,10 +159,10 @@ export class UserService {
     if (userId === adminId) {
       throw new ForbiddenException('You Cannot Delete Your Own Account');
     }
- 
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
- 
+
     await this.prisma.user.delete({ where: { id: userId } });
     return sendResponse('User Deleted Successfully', {});
   };
