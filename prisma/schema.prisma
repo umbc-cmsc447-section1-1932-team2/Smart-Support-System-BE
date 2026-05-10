@@ -30,6 +30,7 @@ model User {
   createdTickets    Ticket[]  @relation("CreatedTickets")
   assignedTickets   Ticket[]  @relation("AssignedTickets")
   messages           Message[]
+  notifications     Notification[]
 }
 
 model Ticket {
@@ -60,4 +61,17 @@ model Message {
   ticketId    String
   ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // e.g. "WELCOME", "TICKET_REQUESTED"
+  email     String
+  subject   String
+  status    String   @default("PENDING") // PENDING | SENT | FAILED; tracks email send status
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
 }
