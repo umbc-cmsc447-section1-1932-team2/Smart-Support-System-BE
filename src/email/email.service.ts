@@ -1,6 +1,7 @@
 // This file is for handling sending logic
 import { transporter } from "../email/email.mailer";
 
+// Emails must have these fields
 interface EmailOptions {
   to: string;
   subject: string;
