@@ -6,7 +6,6 @@ import { AuthService } from './auth.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { makePrisma, makeJwtService, mockUser } from '../test-utils';
 
-jest.mock('bcrypt', () => ({ compare: jest.fn(), hash: jest.fn() }));
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -31,7 +30,7 @@ describe('AuthService', () => {
 
   const doLogin = async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser());
-    jest.mocked(bcrypt.compare).mockResolvedValue(true);
+    (bcrypt.compare as jest.Mock).mockResolvedValue(true);
     const { data } = await service.login({
       email: 'test@email.com',
       password: 'password123',
@@ -42,7 +41,7 @@ describe('AuthService', () => {
   describe('login', () => {
     it('returns tokens and user data with credentials', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser());
-      jest.mocked(bcrypt.compare).mockResolvedValue(true);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.login({
         email: 'test@email.com',
@@ -69,7 +68,7 @@ describe('AuthService', () => {
 
     it('returns UnauthorizedException on wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue(mockUser());
-      jest.mocked(bcrypt.compare).mockResolvedValue(false);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       await expect(
         service.login({ email: 'test@email.com', password: 'wrong' }),
       ).rejects.toThrow(UnauthorizedException);

@@ -1,50 +1,102 @@
-import { WebSocketGateway, WebSocketServer, SubscribeMessage, ConnectedSocket, MessageBody } from '@nestjs/websockets';
+import { 
+  WebSocketGateway, 
+  WebSocketServer, 
+  SubscribeMessage, 
+  ConnectedSocket, 
+  MessageBody 
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../../prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { OnEvent } from '@nestjs/event-emitter'; // 1. IMPORT THIS
 
-@WebSocketGateway({ cors: true })
+@WebSocketGateway({
+  cors: {
+    origin: '*', 
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+})
 export class ChatGateway {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService 
+  ) {}
 
-  //check to make sure both users tokens are correct 
-  //before be even begin to connct.
-  handleConnection(client: Socket) {
-    const token = client.handshake.auth.token;
-    if (!token) {
-      client.disconnect(); // Kick them out!
+
+  //check token
+  async handleConnection(client: Socket) {
+    try {
+      const token = client.handshake.auth.token;
+      if (!token) throw new Error('No token');
+      const payload = await this.jwtService.verifyAsync(token);
+      client.data.user = payload; 
+      console.log(`User ${payload.sub} connected to websockets`);
+    } catch (err) {
+      client.disconnect();
     }
   }
 
-  //walkie talkie function between frontend
-  //Puts user and agent in private room together via ticket number
-  //display userID on console log for tessttttt
-@SubscribeMessage('joinTicket')
+  
+    // listens for 'ticket.created' from TicketService
+    //relays 'newTicketAlert' to all agents browsers
+   
+  @OnEvent('ticket.created')
+  handleTicketCreated(payload: any) {
+    this.server.emit('newTicketAlert', payload);
+    console.log('Broadcast: New ticket added to the Global Queue');
+  }
+
+  
+   //listens for 'ticket.claimed' from TicketService
+   // browsers to remove the ticket from the "Unassigned" list
+   
+  @OnEvent('ticket.claimed')
+  handleTicketClaimed(payload: { ticketId: string; agentId: string }) {
+    this.server.emit('ticketClaimed', payload);
+    console.log(`📢 Broadcast: Ticket ${payload.ticketId} claimed by Agent ${payload.agentId}`);
+  }
+
+
+  
+
+  @SubscribeMessage('joinTicket')
   handleJoinTicket(
     @MessageBody() data: { ticketId: string; userId: string }, 
     @ConnectedSocket() client: Socket
   ) {
     client.join(data.ticketId); 
-    console.log(`User ${data.userId} joined the private room for Ticket: ${data.ticketId}`);
+    console.log(`👤 User ${data.userId} joined Room: ${data.ticketId}`);
   }
 
-  //Save message to prismaa then relay messsage to the chat room.
   @SubscribeMessage('sendMessage')
-  async handleSendMessage(@MessageBody() data: { ticketId: string; senderId: string; content: string }) {
-    
-    // Save to prisma
-    const savedMessage = await this.prisma.message.create({
-      data: {
-        content: data.content,
-        senderId: data.senderId,
-        ticketId: data.ticketId,
-      },
-      include: { sender: true } 
-    });
+  async handleSendMessage(
+    @MessageBody() data: { ticketId: string; senderId: string; content: string } 
+  ) {
+    try {
+      const savedMessage = await this.prisma.message.create({
+        data: {
+          content: data.content,
+          senderId: data.senderId,
+          ticketId: data.ticketId, 
+        },
+        include: { 
+          sender: { select: { id: true, username: true } } 
+        } 
+      });
 
-    // relay only to priv room via ticketID 
-    this.server.to(data.ticketId).emit('newMessage', savedMessage);
+      this.server.to(data.ticketId).emit('newMessage', savedMessage);
+    } catch (error) {
+      console.error("Error Saving", error);
+    }
   }
+
+  @SubscribeMessage('triggerDashboardUpdate')
+  handleDashboardUpdate() {
+    this.server.emit('refreshData'); 
+  }
+
 }

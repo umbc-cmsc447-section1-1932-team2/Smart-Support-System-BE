@@ -45,7 +45,7 @@ describe('UserService', () => {
   describe('createUser', () => {
     it('creates user and returns data hiding password', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      jest.mocked(bcrypt.hash).mockResolvedValue('hashed_pw');
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_pw');
       prisma.user.create.mockResolvedValue(mockUser());
 
       const dto = {

@@ -14,7 +14,11 @@ async function server() {
     });
 
     app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-    app.enableCors();
+    app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true, // need for tokens/cookies
+});
 
     const PORT = process.env.PORT ?? 3000;
     await app.listen(PORT, '0.0.0.0'); // 0.0.0.0 binds to both IPv4 and IPv6

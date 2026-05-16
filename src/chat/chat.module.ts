@@ -1,14 +1,18 @@
 import { Module, forwardRef } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt'; 
 import { ChatGateway } from './chat.gateway';
 import { TicketModule } from '../ticket/ticket.module';
 
-/*
-The ChatModule uses forwardRef to import TicketModule, preventing circular dependency loops.
-ChatGateway is registered as a provider and exported, allowing TicketService to inject it.
-*/
-
 @Module({
-  imports: [forwardRef(() => TicketModule)],
+  imports: [
+JwtModule.registerAsync({
+  useFactory: () => ({
+    secret: process.env.JWT_SECRET,
+    signOptions: { expiresIn: '1d' },
+  }),
+}),
+    forwardRef(() => TicketModule)
+  ],
   providers: [ChatGateway],
   exports: [ChatGateway], 
 })

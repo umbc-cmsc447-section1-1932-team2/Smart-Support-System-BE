@@ -20,8 +20,9 @@ enum VerificationStatus {
 enum TicketStatus {
   OPEN
   IN_PROGRESS
+  WAITING_ON_CUSTOMER
   RESOLVED
-  CLOSED_NOT_RESOLVED
+  CLOSED
 }
 
 model User {

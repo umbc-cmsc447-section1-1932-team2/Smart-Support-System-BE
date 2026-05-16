@@ -13,6 +13,6 @@ export default defineConfig({
     seed: 'ts-node prisma/seed.ts',
   },
   datasource: {
-    url: DATABASE_URL,
+    url: DATABASE_URL!,
   },
 });
