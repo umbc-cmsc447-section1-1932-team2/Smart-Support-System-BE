@@ -48,7 +48,7 @@ model Ticket {
   updatedAt      DateTime         @updatedAt
 
   createdById    String?
-  createdBy      User?           @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("CreatedTickets", fields: [createdById], references: [id], onDelete: Cascade)
 
   assignedToId   String?
   assignedTo     User?            @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
@@ -62,7 +62,7 @@ model Message {
   createdAt   DateTime @default(now())
 
   senderId    String
-  sender      User     @relation(fields: [senderId], references: [id])
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   ticketId    String
   ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
